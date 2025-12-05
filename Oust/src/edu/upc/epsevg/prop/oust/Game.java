@@ -39,7 +39,7 @@ public class Game {
                 // Enjoy!
                 //---------------------------------------------
                // IPlayer player1 = new RandomPlayer("Obelix");
-               IPlayer player1 = new MalaOustiaPlayer();
+                IPlayer player1 = new MalaOustiaPlayer();
                 IPlayer player2 = new HumanPlayer("Human2");
                                 
                 
