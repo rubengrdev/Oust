@@ -16,10 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- *
- * @author pau
- */
+
 public class AlurinPlayer implements IPlayer, IAuto {
 
     private String name;
@@ -48,13 +45,14 @@ public class AlurinPlayer implements IPlayer, IAuto {
     
  
     
-    public int minmax(GameStatus gs, int prof, boolean max, PlayerType MiJugador) {
+    public int minmax(GameStatus gs, int prof, boolean max, PlayerType MiJugador, int alpha, int beta) {
         List<Point> moves = gs.getMoves();
         
         if (prof == 0 || moves.isEmpty()) {
             return heuristica();
         }
         
+        //BRANCA QUE MAXIMITZA
         if (max) {
             int millorValor = Integer.MIN_VALUE;
             for (Point m : moves) {
@@ -62,13 +60,22 @@ public class AlurinPlayer implements IPlayer, IAuto {
                 seguent.placeStone(m);
 
                 boolean maximitza = (MiJugador == seguent.getCurrentPlayer());
+                
 
-                int valor = minmax(seguent, prof - 1, maximitza, MiJugador);
+                int valor = minmax(seguent, prof - 1, maximitza, MiJugador, alpha, beta);
 
                 millorValor = Math.max(valor, millorValor);
+                
+                // tall (poda)
+                alpha = Math.max(alpha, millorValor);
+                if (beta <= alpha) {  
+                    break; 
+                }
+                
             }
             return millorValor;
         } else {
+            //BRANCA QUE MINIMITZA
             int millorValor = Integer.MAX_VALUE;
             for (Point m : moves) {
                 GameStatus seguent = new GameStatus(gs);
@@ -76,9 +83,15 @@ public class AlurinPlayer implements IPlayer, IAuto {
                 
                 boolean maximitza = !(MiJugador == seguent.getCurrentPlayer());
                 
-                int valor = minmax(seguent, prof - 1, maximitza, MiJugador);
+                int valor = minmax(seguent, prof - 1, maximitza, MiJugador, alpha, beta);
                 
                 millorValor = Math.min(valor, millorValor);
+                
+                // tall (poda)
+                beta = Math.min(beta, millorValor);
+                if (beta <= alpha) {
+                    break; 
+                }
             }
             return millorValor;
         }
@@ -94,7 +107,11 @@ public class AlurinPlayer implements IPlayer, IAuto {
      */
     @Override
     public PlayerMove move(GameStatus gs) {
+        
         int millorValor = Integer.MIN_VALUE;
+        int alpha = Integer.MIN_VALUE;
+        int beta = Integer.MAX_VALUE;
+        
         PlayerMove movimentFinal = null;
         List<Point> moves = gs.getMoves();
         PlayerType MiJugador = gs.getCurrentPlayer();
@@ -108,11 +125,12 @@ public class AlurinPlayer implements IPlayer, IAuto {
             
             boolean MiTurno = (MiJugador == aux.getCurrentPlayer());
             
-            int valor = minmax(aux, this.profundidadMaxima - 1, MiTurno, MiJugador);
+            int valor = minmax(aux, this.profundidadMaxima - 1, MiTurno, MiJugador, alpha,beta);
             
             if (valor > millorValor) {
                 millorValor = valor;
                 movimentFinal = new PlayerMove(path, 0, 0, SearchType.MINIMAX);
+                alpha = millorValor;
             }
         }
         return movimentFinal;
