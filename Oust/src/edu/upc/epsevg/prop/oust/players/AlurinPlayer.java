@@ -10,7 +10,7 @@ import edu.upc.epsevg.prop.oust.IPlayer;
 import edu.upc.epsevg.prop.oust.PlayerMove;
 import edu.upc.epsevg.prop.oust.PlayerType;
 import edu.upc.epsevg.prop.oust.SearchType;
-import edu.upc.epsevg.prop.oust.GameSatusAlrurin;
+import edu.upc.epsevg.prop.oust.GameStatusAlurin;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,29 +34,86 @@ public class AlurinPlayer implements IPlayer, IAuto {
 
     }
     
-    public int heuristica() {
-        //heuristica return 6 ftw
+  
+    
+    
+    public int heuristica(GameStatus gsx, PlayerType MiJugador) {
+
+        //identificació heuristica
+        PlayerType Rival;
+        if (MiJugador == PlayerType.PLAYER1) {
+            Rival = PlayerType.PLAYER2;
+        } else {
+            Rival = PlayerType.PLAYER1;
+        }
+        
         /**
-         * Habrá que pasarle los params cómo mínimo de gs y MiJugador
+         * aixó és una terroristada, però: 
+         * Com a moves (1a iteració, l'objecte és GameStatus) no em puc fiar de que sempre arribi un GameStatusAlurin
          */
-        return 6;
+        GameStatusAlurin gs;
+        if(gsx instanceof GameStatusAlurin){
+            gs = (GameStatusAlurin) gsx;
+        }else{
+            //cas en el que no és el tipus complex
+            gs = new GameStatusAlurin(gsx);
+        }
+
+        //mira si el joc acaba o continua
+        if (gs.isGameOver()) {
+            if (gs.GetWinner() == MiJugador) {
+                return Integer.MAX_VALUE;
+            } else if (gs.GetWinner() == Rival) {
+                return Integer.MIN_VALUE;
+            } else {
+                return 0; // Empate
+            }
+        }
+
+        // conteo de peçes meves i les del rival
+        int mypieces = gs.getPieceCount(MiJugador);
+        int rivalpieces = gs.getPieceCount(Rival);
+
+        // si té un multiplicador de pes, aixó dona més prioritat a l'heursítica
+        int valorPeces = (mypieces - rivalpieces) * 1000;
+
+  
+      
+        int boardSize = gs.getSize();
+        int centerCoord = boardSize - 1; 
+        int valorCentre = 0;
+        int pesCentre = 5;
+        
+        for (Point p : gs.getPieceLocations(MiJugador)) {
+            //calcul de la dist de manhattan al centre (0,0)
+            int dist = Math.abs(p.x - centerCoord) + Math.abs(p.y - centerCoord);
+            valorCentre -= dist; 
+        }
+
+        // peçes del rival, en quant més lluny estigui del centre millor
+        for (Point p : gs.getPieceLocations(Rival)) {
+            int dist = Math.abs(p.x - centerCoord) + Math.abs(p.y - centerCoord);
+            valorCentre+= dist; 
+        }
+
+
+        return valorPeces + valorCentre * pesCentre;
     }
-    
-    
  
     
     public int minmax(GameStatus gs, int prof, boolean max, PlayerType MiJugador, int alpha, int beta) {
         List<Point> moves = gs.getMoves();
         
-        if (prof == 0 || moves.isEmpty()) {
-            return heuristica();
+        if (prof == 0 || moves.isEmpty() || gs.isGameOver()) {
+            //return heuristica();
+            return heuristica(gs, MiJugador);
         }
         
         //BRANCA QUE MAXIMITZA
         if (max) {
             int millorValor = Integer.MIN_VALUE;
             for (Point m : moves) {
-                GameStatus seguent = new GameStatus(gs);
+                GameStatusAlurin seguent = new GameStatusAlurin(gs);
                 seguent.placeStone(m);
 
                 boolean maximitza = (MiJugador == seguent.getCurrentPlayer());
@@ -78,7 +135,7 @@ public class AlurinPlayer implements IPlayer, IAuto {
             //BRANCA QUE MINIMITZA
             int millorValor = Integer.MAX_VALUE;
             for (Point m : moves) {
-                GameStatus seguent = new GameStatus(gs);
+                GameStatusAlurin seguent = new GameStatusAlurin(gs);;
                 seguent.placeStone(m);
                 
                 boolean maximitza = !(MiJugador == seguent.getCurrentPlayer());
@@ -117,7 +174,7 @@ public class AlurinPlayer implements IPlayer, IAuto {
         PlayerType MiJugador = gs.getCurrentPlayer();
         
         for (Point m : moves) {
-            GameStatus aux = new GameStatus(gs);
+            GameStatusAlurin aux = new GameStatusAlurin(gs);
             List<Point> path = new ArrayList<>();
             
             aux.placeStone(m);
