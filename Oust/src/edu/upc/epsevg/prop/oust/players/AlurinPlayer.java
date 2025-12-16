@@ -38,16 +38,20 @@ public class AlurinPlayer implements IPlayer, IAuto {
     }
     
     public int heuristica() {
+        //heuristica return 6 ftw
+        /**
+         * Habrá que pasarle los params cómo mínimo de gs y MiJugador
+         */
         return 6;
     }
+    
+    
+ 
     
     public int minmax(GameStatus gs, int prof, boolean max, PlayerType MiJugador) {
         List<Point> moves = gs.getMoves();
         
-        if (prof == 0) {
-            return heuristica();
-        }
-        if (moves.isEmpty()) {
+        if (prof == 0 || moves.isEmpty()) {
             return heuristica();
         }
         
@@ -57,9 +61,9 @@ public class AlurinPlayer implements IPlayer, IAuto {
                 GameStatus seguent = new GameStatus(gs);
                 seguent.placeStone(m);
 
-                boolean MiTurno = (MiJugador == seguent.getCurrentPlayer());
+                boolean maximitza = (MiJugador == seguent.getCurrentPlayer());
 
-                int valor = minmax(seguent, prof - 1, MiTurno, MiJugador);
+                int valor = minmax(seguent, prof - 1, maximitza, MiJugador);
 
                 millorValor = Math.max(valor, millorValor);
             }
@@ -70,9 +74,9 @@ public class AlurinPlayer implements IPlayer, IAuto {
                 GameStatus seguent = new GameStatus(gs);
                 seguent.placeStone(m);
                 
-                boolean MiTurno = (MiJugador == seguent.getCurrentPlayer());
+                boolean maximitza = !(MiJugador == seguent.getCurrentPlayer());
                 
-                int valor = minmax(seguent, prof - 1, MiTurno, MiJugador);
+                int valor = minmax(seguent, prof - 1, maximitza, MiJugador);
                 
                 millorValor = Math.min(valor, millorValor);
             }
