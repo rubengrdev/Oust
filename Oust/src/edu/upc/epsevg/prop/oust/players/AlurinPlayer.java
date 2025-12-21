@@ -1,26 +1,13 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package edu.upc.epsevg.prop.oust.players;
 
-import edu.upc.epsevg.prop.oust.GameStatus;
-import edu.upc.epsevg.prop.oust.IAuto;
-import edu.upc.epsevg.prop.oust.IPlayer;
-import edu.upc.epsevg.prop.oust.PlayerMove;
-import edu.upc.epsevg.prop.oust.PlayerType;
-import edu.upc.epsevg.prop.oust.SearchType;
-import edu.upc.epsevg.prop.oust.GameStatusAlurin;
+import edu.upc.epsevg.prop.oust.*;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
-
 
 public class AlurinPlayer implements IPlayer, IAuto {
 
     private String name;
-
     private int profundidadMaxima;
 
     public AlurinPlayer(String name, int prof) {
@@ -30,175 +17,243 @@ public class AlurinPlayer implements IPlayer, IAuto {
 
     @Override
     public void timeout() {
-        // Nothing to do! I'm so fast, I never timeout 8-)
-
+        // No hacemos nada
     }
-    
-  
-    
-    
-    public int heuristica(GameStatus gsx, PlayerType MiJugador) {
 
-        //identificació heuristica
-        PlayerType Rival;
-        if (MiJugador == PlayerType.PLAYER1) {
-            Rival = PlayerType.PLAYER2;
-        } else {
-            Rival = PlayerType.PLAYER1;
-        }
-        
-        /**
-         * aixó és una terroristada, però: 
-         * Com a moves (1a iteració, l'objecte és GameStatus) no em puc fiar de que sempre arribi un GameStatusAlurin
-         */
-        GameStatusAlurin gs;
-        if(gsx instanceof GameStatusAlurin){
-            gs = (GameStatusAlurin) gsx;
-        }else{
-            //cas en el que no és el tipus complex
-            gs = new GameStatusAlurin(gsx);
-        }
+    // ========================= HEURÍSTICA =========================
 
-        //mira si el joc acaba o continua
-        if (gs.isGameOver()) {
-            if (gs.GetWinner() == MiJugador) {
-                return Integer.MAX_VALUE;
-            } else if (gs.GetWinner() == Rival) {
-                return Integer.MIN_VALUE;
-            } else {
-                return 0; // Empate
+public int heuristica(GameStatus gsx, PlayerType me) {
+
+    PlayerType opp = (me == PlayerType.PLAYER1)
+            ? PlayerType.PLAYER2
+            : PlayerType.PLAYER1;
+
+    GameStatusAlurin gs = (gsx instanceof GameStatusAlurin)
+            ? (GameStatusAlurin) gsx
+            : new GameStatusAlurin(gsx);
+
+    // =========================
+    // 1️⃣ Victoria / Derrota
+    // =========================
+    if (gs.isGameOver()) {
+        if (gs.GetWinner() == me)  return Integer.MAX_VALUE;
+        if (gs.GetWinner() == opp) return Integer.MIN_VALUE;
+        return 0;
+    }
+
+    int score = 0;
+
+    // =========================
+    // 2️⃣ Diferencia de piezas
+    // =========================
+    int myPieces = gs.getPieceCount(me);
+    int oppPieces = gs.getPieceCount(opp);
+    score += (myPieces - oppPieces) * 1000;
+
+    // =========================
+    // 3️⃣ Movilidad
+    // =========================
+    score += gs.getMoves().size() * 20;
+
+    // =========================
+    // 4️⃣ Control del centro
+    // =========================
+    int size = gs.getSize();
+    int center = size / 2;
+    int centerScore = 0;
+
+    for (Point p : gs.getPieceLocations(me)) {
+        centerScore -= Math.abs(p.x - center) + Math.abs(p.y - center);
+    }
+    for (Point p : gs.getPieceLocations(opp)) {
+        centerScore += Math.abs(p.x - center) + Math.abs(p.y - center);
+    }
+
+    score += centerScore * 5;
+
+    // =========================
+    // 5️⃣ Proximidad (suave)
+    // =========================
+    boolean strongerGlobally = myPieces >= oppPieces;
+    int proximityScore = 0;
+
+    for (Point m : gs.getPieceLocations(me)) {
+        for (Point r : gs.getPieceLocations(opp)) {
+            int dist = Math.abs(m.x - r.x) + Math.abs(m.y - r.y);
+            if (dist == 1) {
+                proximityScore += strongerGlobally ? 15 : -20;
             }
         }
-
-        // conteo de peçes meves i les del rival
-        int mypieces = gs.getPieceCount(MiJugador);
-        int rivalpieces = gs.getPieceCount(Rival);
-
-        // si té un multiplicador de pes, aixó dona més prioritat a l'heursítica
-        int valorPeces = (mypieces - rivalpieces) * 1000;
-
-  
-      
-        int boardSize = gs.getSize();
-        int centerCoord = boardSize - 1; 
-        int valorCentre = 0;
-        int pesCentre = 5;
-        
-        for (Point p : gs.getPieceLocations(MiJugador)) {
-            //calcul de la dist de manhattan al centre (0,0)
-            int dist = Math.abs(p.x - centerCoord) + Math.abs(p.y - centerCoord);
-            valorCentre -= dist; 
-        }
-
-        // peçes del rival, en quant més lluny estigui del centre millor
-        for (Point p : gs.getPieceLocations(Rival)) {
-            int dist = Math.abs(p.x - centerCoord) + Math.abs(p.y - centerCoord);
-            valorCentre+= dist; 
-        }
-
-
-        return valorPeces + valorCentre * pesCentre;
     }
- 
-    
-    public int minmax(GameStatus gs, int prof, boolean max, PlayerType MiJugador, int alpha, int beta) {
-        List<Point> moves = gs.getMoves();
-        
-        if (prof == 0 || moves.isEmpty() || gs.isGameOver()) {
-            //return heuristica();
-            return heuristica(gs, MiJugador);
+
+    score += proximityScore;
+
+    // =========================
+    // 6️⃣ Anti-suicidio LOCAL (CLAVE)
+    // =========================
+    int suicidePenalty = 0;
+
+    int[][] dirs = {
+        {-1, 0}, {1, 0},
+        {0, -1}, {0, 1},
+        {-1, 1}, {1, -1}
+    };
+
+    for (Point m : gs.getPieceLocations(me)) {
+
+        boolean enemyAdjacent = false;
+        int friendlyAdj = 0;
+
+        for (int[] d : dirs) {
+            int nx = m.x + d[0];
+            int ny = m.y + d[1];
+
+            if (nx < 0 || ny < 0 || nx >= size || ny >= size)
+                continue;
+
+            PlayerType c = gs.getColor(nx, ny);
+
+            if (c == opp) enemyAdjacent = true;
+            if (c == me)  friendlyAdj++;
         }
-        
-        //BRANCA QUE MAXIMITZA
+
+        // 🔴 ficha aislada en contacto enemigo → MUERTE CASI SEGURA
+        if (enemyAdjacent && friendlyAdj == 0) {
+            suicidePenalty -= 500;
+        }
+    }
+
+    score += suicidePenalty;
+
+    return score;
+}
+
+
+    // ========================= MINIMAX + ALFA-BETA =========================
+
+    public int minmax(GameStatus gs, int depth, boolean max, PlayerType me,
+                      int alpha, int beta) {
+
+        if (depth == 0 || gs.isGameOver()) {
+            return heuristica(gs, me);
+        }
+
+        List<Point> moves = gs.getMoves();
+
+        if (moves.isEmpty()) {
+            return heuristica(gs, me);
+        }
+
         if (max) {
-            int millorValor = Integer.MIN_VALUE;
+            int best = Integer.MIN_VALUE;
+
             for (Point m : moves) {
-                GameStatusAlurin seguent = new GameStatusAlurin(gs);
-                seguent.placeStone(m);
+                GameStatusAlurin next = new GameStatusAlurin(gs);
 
-                boolean maximitza = (MiJugador == seguent.getCurrentPlayer());
-                
-
-                int valor = minmax(seguent, prof - 1, maximitza, MiJugador, alpha, beta);
-
-                millorValor = Math.max(valor, millorValor);
-                
-                // tall (poda)
-                alpha = Math.max(alpha, millorValor);
-                if (beta <= alpha) {  
-                    break; 
-                }
-                
+            try {
+                next.placeStone(m);
+            } catch (Exception e) {
+                continue;
             }
-            return millorValor;
+
+            if (next.isGameOver() && next.GetWinner() != me) {
+                continue;
+            }
+
+                boolean nextMax = (me == next.getCurrentPlayer());
+                int value = minmax(next, depth - 1, nextMax, me, alpha, beta);
+
+                best = Math.max(best, value);
+                alpha = Math.max(alpha, best);
+
+                if (beta <= alpha) break;
+            }
+            return best;
+
         } else {
-            //BRANCA QUE MINIMITZA
-            int millorValor = Integer.MAX_VALUE;
+            int best = Integer.MAX_VALUE;
+
             for (Point m : moves) {
-                GameStatusAlurin seguent = new GameStatusAlurin(gs);;
-                seguent.placeStone(m);
-                
-                boolean maximitza = !(MiJugador == seguent.getCurrentPlayer());
-                
-                int valor = minmax(seguent, prof - 1, maximitza, MiJugador, alpha, beta);
-                
-                millorValor = Math.min(valor, millorValor);
-                
-                // tall (poda)
-                beta = Math.min(beta, millorValor);
-                if (beta <= alpha) {
-                    break; 
-                }
-            }
-            return millorValor;
+                GameStatusAlurin next = new GameStatusAlurin(gs);
+
+        try {
+            next.placeStone(m);
+        } catch (Exception e) {
+            continue;
         }
-       
+
+        if (next.isGameOver() && next.GetWinner() != me) {
+            continue;
+        }
+
+                boolean nextMax = (me == next.getCurrentPlayer());
+                int value = minmax(next, depth - 1, nextMax, me, alpha, beta);
+
+                best = Math.min(best, value);
+                beta = Math.min(beta, best);
+
+                if (beta <= alpha) break;
+            }
+            return best;
+        }
     }
 
-    /**
-     * Decideix el moviment del jugador donat un tauler i un color de peça que
-     * ha de posar.
-     *
-     * @param gs Tauler i estat actual de joc.
-     * @return el moviment que fa el jugador.
-     */
-    @Override
-    public PlayerMove move(GameStatus gs) {
-        
-        int millorValor = Integer.MIN_VALUE;
-        int alpha = Integer.MIN_VALUE;
-        int beta = Integer.MAX_VALUE;
-        
-        PlayerMove movimentFinal = null;
-        List<Point> moves = gs.getMoves();
-        PlayerType MiJugador = gs.getCurrentPlayer();
-        
+    // ========================= MOVE =========================
+
+@Override
+public PlayerMove move(GameStatus gs) {
+
+    PlayerType me = gs.getCurrentPlayer();
+    GameStatusAlurin aux = new GameStatusAlurin(gs);
+    List<Point> path = new ArrayList<>();
+
+    // 🔴 JUGADA COMPLETA
+    do {
+        List<Point> moves = aux.getMoves();
+
+        if (moves.isEmpty()) break;
+
+        Point best = null;
+        int bestValue = Integer.MIN_VALUE;
+
         for (Point m : moves) {
-            GameStatusAlurin aux = new GameStatusAlurin(gs);
-            List<Point> path = new ArrayList<>();
-            
-            aux.placeStone(m);
-            path.add(m);
-            
-            boolean MiTurno = (MiJugador == aux.getCurrentPlayer());
-            
-            int valor = minmax(aux, this.profundidadMaxima - 1, MiTurno, MiJugador, alpha,beta);
-            
-            if (valor > millorValor) {
-                millorValor = valor;
-                movimentFinal = new PlayerMove(path, 0, 0, SearchType.MINIMAX);
-                alpha = millorValor;
+            GameStatusAlurin test = new GameStatusAlurin(aux);
+
+            try {
+                test.placeStone(m);
+            } catch (Exception e) {
+                continue;
+            }
+
+            boolean nextMax = (me == test.getCurrentPlayer());
+            int value = minmax(
+                test,
+                profundidadMaxima - 1,
+                nextMax,
+                me,
+                Integer.MIN_VALUE,
+                Integer.MAX_VALUE
+            );
+
+            if (value > bestValue) {
+                bestValue = value;
+                best = m;
             }
         }
-        return movimentFinal;
-    }
 
-    /**
-     * Ens avisa que hem de parar la cerca en curs perquè s'ha exhaurit el temps
-     * de joc.
-     */
+        if (best == null) break;
+
+        aux.placeStone(best);
+        path.add(best);
+
+    } while (aux.getCurrentPlayer() == me);
+
+    return new PlayerMove(path, 0, 0, SearchType.MINIMAX);
+}
+
+
     @Override
     public String getName() {
-        return "Random(" + name + ")";
+        return "Alurin(" + name + ")";
     }
 }
