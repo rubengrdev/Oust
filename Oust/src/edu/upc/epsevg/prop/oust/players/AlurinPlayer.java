@@ -71,59 +71,45 @@ public int heuristica(GameStatus gsx, PlayerType me) {
 
     score += centerScore * 5;
 
-    // =========================
-    // 5️⃣ Proximidad (suave)
-    // =========================
-    boolean strongerGlobally = myPieces >= oppPieces;
-    int proximityScore = 0;
+    
+    
+    int presion = 0;
 
+    //per cada fitxa propia analitzem que hi ha al voltant de les nostres fitxes:
     for (Point m : gs.getPieceLocations(me)) {
-        for (Point r : gs.getPieceLocations(opp)) {
-            int dist = Math.abs(m.x - r.x) + Math.abs(m.y - r.y);
-            if (dist == 1) {
-                proximityScore += strongerGlobally ? 15 : -20;
+        int myLocal = 0;
+        int oppLocal = 0;
+        
+        //myLocal és un contador de fitxes on la distancia es mínima entre les fitxes del propi jugador
+        for (Point p : gs.getPieceLocations(me)) {
+            
+            int d = Math.abs(m.x - p.x) + Math.abs(m.y - p.y);
+            
+            if (d <= 1) {
+                myLocal++;
             }
         }
-    }
 
-    score += proximityScore;
-
-    // =========================
-    // 6️⃣ Anti-suicidio LOCAL (CLAVE)
-    // =========================
-    int suicidePenalty = 0;
-
-    int[][] dirs = {
-        {-1, 0}, {1, 0},
-        {0, -1}, {0, 1},
-        {-1, 1}, {1, -1}
-    };
-
-    for (Point m : gs.getPieceLocations(me)) {
-
-        boolean enemyAdjacent = false;
-        int friendlyAdj = 0;
-
-        for (int[] d : dirs) {
-            int nx = m.x + d[0];
-            int ny = m.y + d[1];
-
-            if (nx < 0 || ny < 0 || nx >= size || ny >= size)
-                continue;
-
-            PlayerType c = gs.getColor(nx, ny);
-
-            if (c == opp) enemyAdjacent = true;
-            if (c == me)  friendlyAdj++;
+        for (Point p : gs.getPieceLocations(opp)) {
+            int d = Math.abs(m.x - p.x) + Math.abs(m.y - p.y);
+            if (d <= 1) {
+                oppLocal++;
+            }
         }
-
-        // 🔴 ficha aislada en contacto enemigo → MUERTE CASI SEGURA
-        if (enemyAdjacent && friendlyAdj == 0) {
-            suicidePenalty -= 500;
+    
+        /**
+        * Si hi ha moltes peces enemigues valorem si hem de colocar fitxa o no, si hi ha més enemigues, no hem de colocar fitxa ja que perdem
+        * Si hi ha més fitxes nostres coloquem una fitxa.
+        */
+        
+        if (oppLocal > myLocal) {
+            presion -= (oppLocal - myLocal) * 400;
+        }else {
+            presion += (myLocal - oppLocal) * 200;
         }
     }
 
-    score += suicidePenalty;
+    score += presion;
 
     return score;
 }
