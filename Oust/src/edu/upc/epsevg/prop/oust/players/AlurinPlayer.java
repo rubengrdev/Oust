@@ -115,75 +115,7 @@ public int heuristica(GameStatus gsx, PlayerType me) {
 }
 
 
-    // ========================= MINIMAX + ALFA-BETA =========================
-
-    public int minmax(GameStatus gs, int depth, boolean max, PlayerType me,
-                      int alpha, int beta) {
-
-        if (depth == 0 || gs.isGameOver()) {
-            return heuristica(gs, me);
-        }
-
-        List<Point> moves = gs.getMoves();
-
-        if (moves.isEmpty()) {
-            return heuristica(gs, me);
-        }
-
-        if (max) {
-            int best = Integer.MIN_VALUE;
-
-            for (Point m : moves) {
-                GameStatusAlurin next = new GameStatusAlurin(gs);
-
-            try {
-                next.placeStone(m);
-            } catch (Exception e) {
-                continue;
-            }
-
-            if (next.isGameOver() && next.GetWinner() != me) {
-                continue;
-            }
-
-                boolean nextMax = (me == next.getCurrentPlayer());
-                int value = minmax(next, depth - 1, nextMax, me, alpha, beta);
-
-                best = Math.max(best, value);
-                alpha = Math.max(alpha, best);
-
-                if (beta <= alpha) break;
-            }
-            return best;
-
-        } else {
-            int best = Integer.MAX_VALUE;
-
-            for (Point m : moves) {
-                GameStatusAlurin next = new GameStatusAlurin(gs);
-
-        try {
-            next.placeStone(m);
-        } catch (Exception e) {
-            continue;
-        }
-
-        if (next.isGameOver() && next.GetWinner() != me) {
-            continue;
-        }
-
-                boolean nextMax = (me == next.getCurrentPlayer());
-                int value = minmax(next, depth - 1, nextMax, me, alpha, beta);
-
-                best = Math.min(best, value);
-                beta = Math.min(beta, best);
-
-                if (beta <= alpha) break;
-            }
-            return best;
-        }
-    }
-
+    
     // ========================= MOVE =========================
 
 @Override
@@ -212,7 +144,8 @@ public PlayerMove move(GameStatus gs) {
             }
 
             boolean nextMax = (me == test.getCurrentPlayer());
-            int value = minmax(
+            AlgoritmesJugador mh = new AlgoritmesJugador(this.name, this.profundidadMaxima);
+            int value = mh.minmax(
                 test,
                 profundidadMaxima - 1,
                 nextMax,
