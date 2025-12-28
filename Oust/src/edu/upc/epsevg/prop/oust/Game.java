@@ -2,8 +2,8 @@ package edu.upc.epsevg.prop.oust;
 
 import edu.upc.epsevg.prop.oust.players.HumanPlayer;
 import edu.upc.epsevg.prop.oust.players.RandomPlayer;
-import edu.upc.epsevg.prop.oust.players.AlurinPlayer;
-import edu.upc.epsevg.prop.oust.players.AlurinPlayerIDS;
+import edu.upc.epsevg.prop.oust.players.PlayerMiniMax;
+import edu.upc.epsevg.prop.oust.players.PlayerMiniMaxIDS;
 
 
 
@@ -44,7 +44,7 @@ public class Game {
                 //IPlayer player1 = new RandomPlayer("Obelix");
                 IPlayer player1 = new MalaOustiaPlayer();
                 //IPlayer player2 = new HumanPlayer("Human2");
-                IPlayer player2 = new AlurinPlayerIDS("Human2IDS", 2);
+                IPlayer player2 = new PlayerMiniMaxIDS("Human2IDS", 8);
                                 
                 
                 //---------------------------------------------

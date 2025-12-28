@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package edu.upc.epsevg.prop.oust.players;
 
 import edu.upc.epsevg.prop.oust.GameStatus;
@@ -11,115 +7,144 @@ import java.awt.Point;
 import java.util.List;
 
 /**
- * Clase encarregada de l'heuristica (així no repetim codi a la classe del mimimax o minimaxIDS)
- * 
+ * Clase encargada de la evaluación heurística de los estados del juego Oust.
+ * <p>
+ * Centraliza la lógica de valoración para evitar la duplicación de código
+ * en las clases que implementan algoritmos de búsqueda como Minimax o
+ * Minimax con Iterative Deepening.
+ * </p>
+ *
+ * La heurística combina distintos factores estratégicos como:
+ * <ul>
+ *   <li>Estados finales (victoria o derrota)</li>
+ *   <li>Diferencia de piezas en el tablero</li>
+ *   <li>Movilidad</li>
+ *   <li>Control del centro</li>
+ *   <li>Presión local entre piezas propias y rivales</li>
+ * </ul>
+ *
+ * @author Rubén Gómez y Pau Espuń Ferrer
  */
-public class Heuristica extends AlurinPlayer{
-      
+public class Heuristica extends PlayerMiniMax {
+
+    /**
+     * Constructor de la clase Heuristica.
+     *
+     * @param name Nombre identificativo del jugador
+     * @param prof Profundidad máxima usada por el jugador
+     */
     public Heuristica(String name, int prof) {
         super(name, prof);
     }
-    
- // ========================= HEURÍSTICA =========================
-/**
- * Com heuristica, ens basem en que volem que hi hagi un "sentit" a l'hora de colocar les peces
- * L'objectiu és reunir les peces del nostre jugador i evaluar si ens podem apropar a l'altre jugador. 
- * 
- * @param gsx estat actual del joc
- * @param me tipus de jugador per al que s'evalua
- * @return enter que representa la puntuació de valoració (score positiu si guanyem/millor moviment o negatiu si perdem o és dolent)
- */
-public int heuristica(GameStatus gsx, PlayerType me) {
 
-    PlayerType opp = (me == PlayerType.PLAYER1)
-            ? PlayerType.PLAYER2
-            : PlayerType.PLAYER1;
+    // ========================= HEURÍSTICA =========================
 
-    GameStatusAlurin gs = (gsx instanceof GameStatusAlurin)
-            ? (GameStatusAlurin) gsx
-            : new GameStatusAlurin(gsx);
+    /**
+     * Evalúa heurísticamente un estado del juego desde el punto de vista
+     * de un jugador concreto.
+     * <p>
+     * Devuelve un valor entero que representa la calidad del estado:
+     * valores positivos indican situaciones favorables para el jugador,
+     * mientras que valores negativos indican estados desfavorables.
+     * </p>
+     *
+     * @param gsx Estado actual del juego
+     * @param me Jugador para el que se realiza la evaluación
+     * @return Valor entero que representa la puntuación heurística del estado
+     */
+    public int heuristica(GameStatus gsx, PlayerType me) {
 
-    // =========================
-    // 1️⃣ Victoria / Derrota
-    // =========================
-    if (gs.isGameOver()) {
-        if (gs.GetWinner() == me)  return Integer.MAX_VALUE;
-        if (gs.GetWinner() == opp) return Integer.MIN_VALUE;
-        return 0;
-    }
+        PlayerType opp = (me == PlayerType.PLAYER1)
+                ? PlayerType.PLAYER2
+                : PlayerType.PLAYER1;
 
-    int score = 0;
+        // Aseguramos trabajar con GameStatusAlurin
+        GameStatusAlurin gs = (gsx instanceof GameStatusAlurin)
+                ? (GameStatusAlurin) gsx
+                : new GameStatusAlurin(gsx);
 
-    // =========================
-    // 2️⃣ Diferencia de piezas
-    // =========================
-    int myPieces = gs.getPieceCount(me);
-    int oppPieces = gs.getPieceCount(opp);
-    score += (myPieces - oppPieces) * 1000;
+        // =========================
+        // Victoria / Derrota
+        // =========================
+        if (gs.isGameOver()) {
+            if (gs.GetWinner() == me)  return Integer.MAX_VALUE;
+            if (gs.GetWinner() == opp) return Integer.MIN_VALUE;
+            return 0;
+        }
 
-    // =========================
-    // 3️⃣ Movilidad
-    // =========================
-    score += gs.getMoves().size() * 20;
+        int score = 0;
 
-    // =========================
-    // 4️⃣ Control del centro
-    // =========================
-    int size = gs.getSize();
-    int center = size / 2;
-    int centerScore = 0;
+        // =========================
+        // Diferencia de piezas
+        // =========================
+        int myPieces = gs.getPieceCount(me);
+        int oppPieces = gs.getPieceCount(opp);
+        score += (myPieces - oppPieces) * 1000;
 
-    for (Point p : gs.getPieceLocations(me)) {
-        centerScore -= Math.abs(p.x - center) + Math.abs(p.y - center);
-    }
-    for (Point p : gs.getPieceLocations(opp)) {
-        centerScore += Math.abs(p.x - center) + Math.abs(p.y - center);
-    }
+        // =========================
+        // Movilidad
+        // =========================
+        score += gs.getMoves().size() * 20;
 
-    score += centerScore * 5;
+        // =========================
+        // Control del centro
+        // =========================
+        int size = gs.getSize();
+        int center = size / 2;
+        int centerScore = 0;
 
-    
-    
-    int presion = 0;
-
-    //per cada fitxa propia analitzem que hi ha al voltant de les nostres fitxes:
-    for (Point m : gs.getPieceLocations(me)) {
-        int myLocal = 0;
-        int oppLocal = 0;
-        
-        //myLocal és un contador de fitxes on la distancia es mínima entre les fitxes del propi jugador
         for (Point p : gs.getPieceLocations(me)) {
-            
-            int d = Math.abs(m.x - p.x) + Math.abs(m.y - p.y);
-            
-            if (d <= 1) {
-                myLocal++;
-            }
+            centerScore -= Math.abs(p.x - center) + Math.abs(p.y - center);
         }
-
         for (Point p : gs.getPieceLocations(opp)) {
-            int d = Math.abs(m.x - p.x) + Math.abs(m.y - p.y);
-            if (d <= 1) {
-                oppLocal++;
+            centerScore += Math.abs(p.x - center) + Math.abs(p.y - center);
+        }
+
+        score += centerScore * 5;
+
+        // =========================
+        // Presión local
+        // =========================
+        int presion = 0;
+
+        /*
+         * Para cada pieza propia se analiza el entorno inmediato,
+         * comparando el número de piezas propias y enemigas cercanas.
+         */
+        for (Point m : gs.getPieceLocations(me)) {
+            int myLocal = 0;
+            int oppLocal = 0;
+
+            // Contamos piezas propias cercanas
+            for (Point p : gs.getPieceLocations(me)) {
+                int d = Math.abs(m.x - p.x) + Math.abs(m.y - p.y);
+                if (d <= 1) {
+                    myLocal++;
+                }
+            }
+
+            // Contamos piezas enemigas cercanas
+            for (Point p : gs.getPieceLocations(opp)) {
+                int d = Math.abs(m.x - p.x) + Math.abs(m.y - p.y);
+                if (d <= 1) {
+                    oppLocal++;
+                }
+            }
+
+            /*
+             * Si hay más piezas enemigas que propias alrededor,
+             * el estado se penaliza. En caso contrario, se recompensa
+             * la concentración de piezas propias.
+             */
+            if (oppLocal > myLocal) {
+                presion -= (oppLocal - myLocal) * 400;
+            } else {
+                presion += (myLocal - oppLocal) * 200;
             }
         }
-    
-        /**
-        * Si hi ha moltes peces enemigues valorem si hem de colocar fitxa o no, si hi ha més enemigues, no hem de colocar fitxa ja que perdem
-        * Si hi ha més fitxes nostres coloquem una fitxa.
-        */
-        
-        if (oppLocal > myLocal) {
-            presion -= (oppLocal - myLocal) * 400;
-        }else {
-            presion += (myLocal - oppLocal) * 200;
-        }
+
+        score += presion;
+
+        return score;
     }
-
-    score += presion;
-
-    return score;
-}
-
-    
 }
