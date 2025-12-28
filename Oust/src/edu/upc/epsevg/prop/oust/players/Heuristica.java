@@ -10,7 +10,10 @@ import edu.upc.epsevg.prop.oust.PlayerType;
 import java.awt.Point;
 import java.util.List;
 
-
+/**
+ * Clase encarregada de l'heuristica (així no repetim codi a la classe del mimimax o minimaxIDS)
+ * 
+ */
 public class Heuristica extends AlurinPlayer{
       
     public Heuristica(String name, int prof) {
@@ -18,7 +21,14 @@ public class Heuristica extends AlurinPlayer{
     }
     
  // ========================= HEURÍSTICA =========================
-
+/**
+ * Com heuristica, ens basem en que volem que hi hagi un "sentit" a l'hora de colocar les peces
+ * L'objectiu és reunir les peces del nostre jugador i evaluar si ens podem apropar a l'altre jugador. 
+ * 
+ * @param gsx estat actual del joc
+ * @param me tipus de jugador per al que s'evalua
+ * @return enter que representa la puntuació de valoració (score positiu si guanyem/millor moviment o negatiu si perdem o és dolent)
+ */
 public int heuristica(GameStatus gsx, PlayerType me) {
 
     PlayerType opp = (me == PlayerType.PLAYER1)
