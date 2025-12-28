@@ -5,136 +5,95 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AlurinPlayerIDS extends AlurinPlayer{
+public class AlurinPlayerIDS extends AlurinPlayer {
 
-    private String name;
-    private int profundidadMaxima;
-    private long startTime;
-    private final long TIME_LIMIT = 4500; // este 4500 son 4.5segunds en 
-   
-    public AlurinPlayerIDS(String name, int prof) {
-        super(name, prof);
+    private volatile boolean timeoutFlag;
+
+    public AlurinPlayerIDS(String name, int profMax) {
+        super(name, profMax);
+        this.timeoutFlag = false;
     }
 
     @Override
     public void timeout() {
-        // No hacemos nada
+        timeoutFlag = true;
     }
 
-
-    public Point getMove(GameStatus gs) {
-        startTime = System.currentTimeMillis();
-        Point bestMove = null;
-        int depth = 1;
-        
-       
-        List<Point> moves = gs.getMoves();
-        if (moves.isEmpty()){
-            return null;
-        }
+    @Override
+    public PlayerMove move(GameStatus gs) {
 
         PlayerType me = gs.getCurrentPlayer();
+        timeoutFlag = false;
 
-        // Bucle IDS (fins a que s'acaba el temps
-        try {
-            while (true) {
-                Point currentBest = null;
-                int bestValue = Integer.MIN_VALUE;
+        List<Point> bestPathGlobal = new ArrayList<>();
+        int profundidad = 1;
 
-                for (Point m : moves) {
-                    checkTime(); //si s'acaba el temps peta :)
+        while (!timeoutFlag && profundidad <= super.profundidadMaxima) {
 
-                    GameStatusAlurin next = new GameStatusAlurin(gs);
-                    next.placeStone(m);
-                    
-                    boolean nextMax = (me == next.getCurrentPlayer());
-                    int val = minmaxIDS(next, depth - 1, nextMax, me, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            GameStatusAlurin aux = new GameStatusAlurin(gs);
+            List<Point> currentPath = new ArrayList<>();
 
-                    if (val > bestValue) {
-                        bestValue = val;
-                        currentBest = m;
+            try {
+                do {
+                    List<Point> moves = aux.getMoves();
+                    if (moves.isEmpty()) break;
+
+                    Point bestMove = null;
+                    int bestValue = Integer.MIN_VALUE;
+
+                    for (Point m : moves) {
+
+                        if (timeoutFlag) break;
+
+                        GameStatusAlurin test = new GameStatusAlurin(aux);
+
+                        try {
+                            test.placeStone(m);
+                        } catch (Exception e) {
+                            continue;
+                        }
+
+                        boolean nextMax = (me == test.getCurrentPlayer());
+                        int value = super.minmax(
+                            test,
+                            profundidad - 1,
+                            nextMax,
+                            me,
+                            Integer.MIN_VALUE,
+                            Integer.MAX_VALUE
+                        );
+
+                        if (value > bestValue) {
+                            bestValue = value;
+                            bestMove = m;
+                        }
                     }
+
+                    if (bestMove == null || timeoutFlag) break;
+
+                    aux.placeStone(bestMove);
+                    currentPath.add(bestMove);
+
+                } while (aux.getCurrentPlayer() == me && !timeoutFlag);
+
+                if (!timeoutFlag && !currentPath.isEmpty()) {
+                    bestPathGlobal = new ArrayList<>(currentPath);
                 }
-                
-                bestMove = currentBest;
-                depth++;
-                
-                //aquesta terroristada és per si guanyem, no té sentit continuar...
-                if (bestValue == Integer.MAX_VALUE){ 
-                    break;
-                }
+
+            } catch (Exception e) {
+                // Si salta cualquier cosa por timeout, simplemente salimos
             }
-        } catch (TimeoutException e) {
-            //to do...
-        }
-        if(bestMove != null){
-            return bestMove;
-        }else{
-            return moves.get(0);
-        }
-    }
 
-    public int minmaxIDS(GameStatus gs, int depth, boolean max, PlayerType me, int alpha, int beta) throws TimeoutException {
-        checkTime(); 
-        Heuristica h = new Heuristica(this.name, this.profundidadMaxima);
-        if (depth == 0 || gs.isGameOver()) {
-            return h.heuristica(gs, me);
+            profundidad++;
         }
 
-        List<Point> moves = gs.getMoves();
-        if (moves.isEmpty()) return h.heuristica(gs, me);
-
-        if (max) {
-            int best = Integer.MIN_VALUE;
-            for (Point m : moves) {
-                GameStatusAlurin next = new GameStatusAlurin(gs);
-                
-                try { 
-                    next.placeStone(m); 
-                } catch (Exception e) { 
-                    continue; 
-                }
-                
-                boolean nextMax = (me == next.getCurrentPlayer());
-                
-                int value = minmaxIDS(next, depth - 1, nextMax, me, alpha, beta);
-                //alphabeta (poda)
-                best = Math.max(best, value);
-                alpha = Math.max(alpha, best);
-                
-                if (beta <= alpha){ 
-                    break;
-                }
+        if (bestPathGlobal.isEmpty()) {
+            List<Point> moves = gs.getMoves();
+            if (!moves.isEmpty()) {
+                bestPathGlobal.add(moves.get(0));
             }
-            return best;
-        } else {
-            int best = Integer.MAX_VALUE;
-            for (Point m : moves) {
-                GameStatusAlurin next = new GameStatusAlurin(gs);
-                
-                try { 
-                    next.placeStone(m); 
-                } catch (Exception e) {
-                    continue; 
-                }
-                
-                boolean nextMax = (me == next.getCurrentPlayer());
-                int value = minmaxIDS(next, depth - 1, nextMax, me, alpha, beta);
-                best = Math.min(best, value);
-                beta = Math.min(beta, best);
-                if (beta <= alpha){
-                    break;
-                }
-            }
-            return best;
         }
-    }
 
-    private void checkTime() throws TimeoutException {
-        if (System.currentTimeMillis() - startTime > TIME_LIMIT) {
-            throw new TimeoutException();
-        }
+        return new PlayerMove(bestPathGlobal, 0, 0, SearchType.MINIMAX_IDS);
     }
-
-    private class TimeoutException extends Exception {}
 }

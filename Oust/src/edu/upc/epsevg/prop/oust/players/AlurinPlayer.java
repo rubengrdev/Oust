@@ -8,7 +8,7 @@ import java.util.List;
 public class AlurinPlayer implements IPlayer, IAuto {
 
     private String name;
-    private int profundidadMaxima;
+    protected int profundidadMaxima;
 
     public AlurinPlayer(String name, int prof) {
         this.name = name;
@@ -19,10 +19,6 @@ public class AlurinPlayer implements IPlayer, IAuto {
     public void timeout() {
         // No hacemos nada
     }
-
-   
-
-   // ========================= MINIMAX + ALFA-BETA =========================
 
     public int minmax(GameStatus gs, int depth, boolean max, PlayerType me,
                       int alpha, int beta) {
@@ -92,17 +88,13 @@ public class AlurinPlayer implements IPlayer, IAuto {
             return best;
         }
     }
-    
-    // ========================= MOVE =========================
 
 @Override
 public PlayerMove move(GameStatus gs) {
-
     PlayerType me = gs.getCurrentPlayer();
     GameStatusAlurin aux = new GameStatusAlurin(gs);
     List<Point> path = new ArrayList<>();
 
-    // 🔴 JUGADA COMPLETA
     do {
         List<Point> moves = aux.getMoves();
 
